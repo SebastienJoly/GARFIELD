@@ -21,11 +21,11 @@ def progress_bar_gui(total, progress, extra=""):
     if progress >= 1.:
         progress, status = 1, "\r\n"
     block = int(round(barLength * progress))
-    text = "\r Progress : [{}] {:.0f}% {}{}".format(
+    text = "\r Convergence to optimal solution : [{}] {:.0f}% {}{}".format(
         "#" * block + "-" * (barLength - block),
         round(progress * 100, 0), extra, status)
-    if round(progress * 100, 0) == 100:
-        text = "\r Progress : [{}] 100%\n".format("#" * 20)
+    if 100 * progress // 1 == 100:
+        text = "\r Convergence to optimal solution : [{}] 100%\n".format("#" * 20)
         sys.stdout.write(text)
         sys.stdout.flush()
     else:
@@ -39,11 +39,14 @@ progress = []
 def progress_bar(x, convergence, *karg):
     progress.append(convergence)
     params_each_iteration.append(x)
-    progress_bar_gui(1, max(progress), extra="")
+    progress_bar_gui(1, progress[-1], extra="")
 
 def generate_Initial_Parameters(parameterBounds, minimizationFunction, fitFunction,
                                 x_values_data, y_values_data,
-                                maxiter=2000, popsize=150, tol=0.01, 
+                                maxiter=2000, popsize=150, 
+                                mutation=(0.1, 0.5), crossover_rate=0.8,
+                                tol=0.01, 
+                                workers=-1, #vectorized=False,
                                 iteration_convergence=False):
 
     """ This function allows to generate adequate initial guesses to use in the minimization algorithm.
@@ -54,29 +57,31 @@ def generate_Initial_Parameters(parameterBounds, minimizationFunction, fitFuncti
     All the arguments are detailed on this page :
     (https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html)
     Setting workers= -1 means all CPUs available will be used for the computation.
+    Parameters used for the DE algorithm taken from https://www.mdpi.com/2227-7390/9/4/427
     """
-    
 
     
     minimization_function = partial(minimizationFunction, fitFunction=fitFunction,
-                                    frequencies=x_values_data, impedance_data=y_values_data)
+                                    x=x_values_data, y=y_values_data)
     
     result = differential_evolution(minimization_function,parameterBounds, 
                                     popsize=popsize, tol=tol, maxiter=maxiter,
-                                    recombination=0.9, polish=True, 
+                                    mutation=mutation, recombination=crossover_rate, polish=False, 
                                     init='latinhypercube',
                                     callback=progress_bar,
-                                    workers=-1)#,seed=3)
+                                    updating='deferred', workers=workers, #vectorized=vectorized
+                                   )
     
     while ((result.message == 'Maximum number of iterations has been exceeded.') and (iteration_convergence)):
         warning = 'Increased number of iterations by 10% to reach convergence. \n'
         maxiter = int(1.1*maxiter)
         result = differential_evolution(minimization_function,parameterBounds, 
                                         popsize=popsize, tol=tol, maxiter=maxiter,
-                                        recombination=0.9, polish=True, 
+                                        mutation=mutation, recombination=crossover_rate, polish=False, 
                                         init='latinhypercube',
                                         callback=progress_bar,
-                                        workers=-1)#,seed=3)
+                                        updating='deferred', workers=workers, #vectorized=vectorized
+                                       )
         
     else:
         warning = ''
