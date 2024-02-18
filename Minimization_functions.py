@@ -8,103 +8,121 @@ Created on Sat Dec  5 16:34:10 2020
 import numpy as np
 
 def pars_to_dict(pars):
-    dict_params = {}
-    for i in range(int(len(pars)/3)):
-        dict_params[i] = pars[3*i:3*i+3]
-    return dict_params
+    """Converts a list of parameters into a dictionary of parameter groups.
 
-'''def sumOfSquaredError(pars, fitFunction, frequencies, impedance_data):
-    """
-    Complex sum of squared errors
-    """
-    dict_params = pars_to_dict(pars)
-    predicted_impedance = fitFunction(frequencies, dict_params)
-    ErrorReal = impedance_data.real - predicted_impedance.real
-    ErrorImag = impedance_data.imag - predicted_impedance.imag
-    sumOfSquaredErrorReal = np.nansum(ErrorReal ** 2)
-    sumOfSquaredErrorImag = np.nansum(ErrorImag ** 2)
-    return sumOfSquaredErrorReal + sumOfSquaredErrorImag'''
+    This function takes a list of parameters `pars` and groups them into
+    dictionaries of three parameters (e.g. Rs, Q, resonant_frequency) each. 
+    The keys of the resulting dictionary are integers starting from 0, 
+    and the values are lists containing three consecutive parameters from 
+    the input list.
 
-def sumOfSquaredError(pars, fitFunction, x, y):
-    """
-    Complex sum of squared errors
-    
-    Parameters:
-        pars (array-like): Array of fit parameters.
-        fit_function (callable): Function to compute the model impedance.
-        x (array-like): Array of x values.
-        y (array-like): Array of y values.
-        
+    Args:
+        pars: A list or array of parameters to be grouped.
+
     Returns:
-        float: Sum of squared errors.
+        dict: A dictionary where keys are integers and values are
+             lists of three parameters.
+
+    Raises:
+        ValueError: If the length of `pars` is not a multiple of 3 or is empty.
     """
-    dict_params = pars_to_dict(pars)
-    predicted_y = fitFunction(x, dict_params)
-    SquarredError = (y.real - predicted_y.real)**2 + (y.imag - predicted_y.imag)**2
-    return np.nansum(SquarredError)
+
+    if not pars:
+        raise ValueError("Input list cannot be empty")
+
+    if len(pars) % 3 != 0:
+        raise ValueError("Input list length must be a multiple of 3")
+
+    grouped_parameters = {}
+    for i in range(0, len(pars), 3):
+        grouped_parameters[i // 3] = pars[i : i + 3]
+
+    return grouped_parameters
+
+def sumOfSquaredError(parameters, fit_function, x, y):
+    """Calculates the sum of squared errors (SSE) for a given fit function.
+
+    This function computes the SSE between the predicted values from a fit function and
+    the actual data points. It works with both real and imaginary components of the data.
+
+    Args:
+        parameters: Array of parameters used by the fit_function.
+        fit_function: Function that takes parameters and x values as input and
+            returns predicted y values (including real and imaginary parts).
+        x: Array of x values for the data.
+        y: Array of y values for the data (including real and imaginary parts).
+
+    Returns:
+        The sum of squared errors (SSE).
+    """
+
+    grouped_parameters = pars_to_dict(parameters)
+    predicted_y = fitFunction(x, grouped_parameters)
+    squared_error = np.nansum((y.real - predicted_y.real)**2 + (y.imag - predicted_y.imag)**2)
+    return squared_error
 
 def sumOfSquaredErrorReal(pars, fitFunction, x, y):
-    """
-    Complex sum of squared errors
-    
-    Parameters:
-        pars (array-like): Array of fit parameters.
-        fit_function (callable): Function to compute the model impedance.
-        x (array-like): Array of x values.
-        y (array-like): Array of y values.
-        
-    Returns:
-        float: Sum of squared errors.
-    """
-    dict_params = pars_to_dict(pars)
-    predicted_y = fitFunction(x, dict_params)
-    SquarredError = (y.real - predicted_y.real)**2
-    return np.nansum(SquarredError)
+    """Calculates the real sum of squared errors (SSE) for a given fit function.
 
-'''def logsumOfSquaredError(pars, fitFunction, frequencies, impedance_data):
-    """
-    Complex sum of squared errors
-    """
-    dict_params = pars_to_dict(pars)
-    predicted_impedance = fitFunction(frequencies, dict_params)
-    ErrorReal = np.log(np.abs(impedance_data.real)) - np.log(np.abs(predicted_impedance.real))
-    ErrorImag = np.log(np.abs(impedance_data.imag)) - np.log(np.abs(predicted_impedance.imag))
-    sumOfSquaredErrorReal = np.nansum(ErrorReal ** 2)
-    sumOfSquaredErrorImag = np.nansum(ErrorImag ** 2)
-    return sumOfSquaredErrorReal + sumOfSquaredErrorImag'''
+    This function computes the SSE between the predicted values from a fit function and
+    the actual data points. It works only with the real component of the data.
 
-def logsumOfSquaredError(pars, fitFunction, x, y):
-    """
-    Complex log sum of squared errors
-    
-    Parameters:
-        pars (array-like): Array of fit parameters.
-        fit_function (callable): Function to compute the model impedance.
-        x (array-like): Array of x values.
-        y (array-like): Array of y values.
-        
-    Returns:
-        float: Log sum of squared errors.
-    """
-    dict_params = pars_to_dict(pars)
-    predicted_y = fitFunction(x, dict_params)
-    LogSquarredError = np.log((y.real - predicted_y.real)**2 + (y.imag - predicted_y.imag)**2)
-    return np.nansum(LogSquarredError)
+    Args:
+        parameters: Array of parameters used by the fit_function.
+        fit_function: Function that takes parameters and x values as input and
+            returns predicted y values (including only the real part).
+        x: Array of x values for the data.
+        y: Array of y values for the data (including only the real part).
 
-def logsumOfSquaredErrorReal(pars, fitFunction, x, y):
-    """
-    Complex log sum of squared errors
-    
-    Parameters:
-        pars (array-like): Array of fit parameters.
-        fit_function (callable): Function to compute the model impedance.
-        x (array-like): Array of x values.
-        y (array-like): Array of y values.
-        
     Returns:
-        float: Log sum of squared errors.
+        The real sum of squared errors (SSE).
     """
-    dict_params = pars_to_dict(pars)
-    predicted_y = fitFunction(x, dict_params)
-    LogSquarredError = np.log((y.real - predicted_y.real)**2)
-    return np.nansum(LogSquarredError)
+
+    grouped_parameters = pars_to_dict(parameters)
+    predicted_y = fitFunction(x, grouped_parameters)
+    squared_error = np.nansum((y.real - predicted_y.real)**2)
+    return squared_error
+
+def logsumOfSquaredError(parameters, fitFunction, x, y):
+    """Calculates the sum of log squared errors for a given fit function.
+
+    This function computes the log squared errors between the predicted values from a fit function 
+    and the actual data points. It works with both real and imaginary components of the data.
+
+    Args:
+        parameters: Array of parameters used by the fit_function.
+        fit_function: Function that takes parameters and x values as input and
+            returns predicted y values (including real and imaginary parts).
+        x: Array of x values for the data.
+        y: Array of y values for the data (including real and imaginary parts).
+
+    Returns:
+        The sum of log squared errors.
+    """
+    grouped_parameters = pars_to_dict(parameters)
+    predicted_y = fitFunction(x, grouped_parameters)
+    log_squared_error = np.nansum(np.log((y.real - predicted_y.real)**2 + (y.imag - predicted_y.imag)**2))
+    return log_squared_error
+
+def logsumOfSquaredErrorReal(parameters, fitFunction, x, y):
+    """Calculates the real sum of log squared errors for a given fit function.
+
+    This function computes the real log squared errors between the predicted values 
+    from a fit function and the actual data points. 
+    It works only with the real component of the data.
+
+    Args:
+        parameters: Array of parameters used by the fit_function.
+        fit_function: Function that takes parameters and x values as input and
+            returns predicted y values (including only the real part).
+        x: Array of x values for the data.
+        y: Array of y values for the data (including only the real part).
+
+    Returns:
+        The real sum of log squared errors.
+    """
+    
+    grouped_parameters = pars_to_dict(parameters)
+    predicted_y = fitFunction(x, grouped_parameters)
+    log_squared_error = np.nansum(np.log((y.real - predicted_y.real)**2))
+    return log_squared_error
