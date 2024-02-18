@@ -9,6 +9,7 @@ import sys
 from functools import partial
 import numpy as np
 from scipy.optimize import differential_evolution
+import pyfde
 
 def progress_bar_gui(total, progress, extra=""):
     """
@@ -40,14 +41,29 @@ def progress_bar(x, convergence, *karg):
     progress.append(convergence)
     params_each_iteration.append(x)
     progress_bar_gui(1, progress[-1], extra="")
+    
+def stop_criterion(solver):
+    '''
+    Based on the criterion used in scipy.optimize.differential_evolution 
+    (https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html)
+    Check that the ratio of the spread of the population fitness compared to its average.
+    In other words, if most of the population individuals converge to the same solution indicating
+    an optimal solution has been found.
+    '''
+    population_cost = np.vstack(solver)[:,1]
+    population_mean, population_std = np.mean(population_cost), np.std(population_cost)
+    criterion = population_std / np.abs(population_mean)
+    return criterion
 
 def generate_Initial_Parameters(parameterBounds, minimizationFunction, fitFunction,
                                 x_values_data, y_values_data,
                                 maxiter=2000, popsize=150, 
                                 mutation=(0.1, 0.5), crossover_rate=0.8,
-                                tol=0.01, 
-                                workers=-1, #vectorized=False,
-                                iteration_convergence=False):
+                                tol=0.01,
+                                solver='scipy',
+                                #workers=-1, vectorized=False,
+                                #iteration_convergence=False
+                               ):
 
     """ This function allows to generate adequate initial guesses to use in the minimization algorithm.
     In this step we do not necessarily need to have converged results. Approximate results are enough.
@@ -64,34 +80,72 @@ def generate_Initial_Parameters(parameterBounds, minimizationFunction, fitFuncti
     minimization_function = partial(minimizationFunction, fitFunction=fitFunction,
                                     x=x_values_data, y=y_values_data)
     
-    result = differential_evolution(minimization_function,parameterBounds, 
-                                    popsize=popsize, tol=tol, maxiter=maxiter,
-                                    mutation=mutation, recombination=crossover_rate, polish=False, 
-                                    init='latinhypercube',
-                                    callback=progress_bar,
-                                    updating='deferred', workers=workers, #vectorized=vectorized
-                                   )
-    
-    while ((result.message == 'Maximum number of iterations has been exceeded.') and (iteration_convergence)):
-        warning = 'Increased number of iterations by 10% to reach convergence. \n'
-        maxiter = int(1.1*maxiter)
-        result = differential_evolution(minimization_function,parameterBounds, 
+    if solver == 'scipy':
+        result = differential_evolution(minimization_function, parameterBounds, 
                                         popsize=popsize, tol=tol, maxiter=maxiter,
                                         mutation=mutation, recombination=crossover_rate, polish=False, 
                                         init='latinhypercube',
                                         callback=progress_bar,
-                                        updating='deferred', workers=workers, #vectorized=vectorized
+                                        updating='deferred', workers=-1, #vectorized=vectorized
                                        )
+
+        # Need to be reworked to use the last population as the new initial population to speed up convergence
+        """while ((result.message == 'Maximum number of iterations has been exceeded.') and (iteration_convergence)):
+            warning = 'Increased number of iterations by 10% to reach convergence. \n'
+            maxiter = int(1.1*maxiter)
+            result = differential_evolution(minimization_function,parameterBounds, 
+                                            popsize=popsize, tol=tol, maxiter=maxiter,
+                                            mutation=mutation, recombination=crossover_rate, polish=False, 
+                                            init='latinhypercube',
+                                            callback=progress_bar,
+                                            updating='deferred', workers=-1, #vectorized=vectorized
+                                           )
+
+        else:
+            warning = ''
+        """
         
-    else:
-        warning = ''
+        solution, message = result.x, result.message
         
-    params_each_iteration = []
-    progress = []
+        params_each_iteration = []
+        progress = []
+        
+    elif solver == 'pyfde':
+        solver = pyfde.ClassicDE(minimization_function, n_dim=len(parameterBounds), n_pop=popsize*len(parameterBounds), 
+                                 limits=parameterBounds, minimize=True)
+        solver.cr, solver.f = crossover_rate, np.mean(mutation)
+
+        for i in range(maxiter):
+            #sys.stdout.write('\r{}/{}'.format(i, max_it))
+            best, _ = solver.run(n_it=1)
+            progress_bar_gui(1, np.max((tol/stop_criterion(solver), i/maxiter)))
+            if stop_criterion(solver) < tol:
+                break
+            else:
+                continue
+                
+        solution, message = best, ''
+
+        
+    elif solver == 'pyfde_jade':
+        
+        solver = pyfde.JADE(minimization_function, n_dim=len(parameterBounds), n_pop=popsize*len(parameterBounds), 
+                                 limits=parameterBounds, minimize=True)
+
+        for i in range(maxiter):
+            #sys.stdout.write('\r{}/{}'.format(i, max_it))
+            best, _ = solver.run(n_it=1)
+            progress_bar_gui(1, np.max((tol/stop_criterion(solver), i/maxiter)))
+            if stop_criterion(solver) < tol:
+                break
+            else:
+                continue
+                
+        solution, message = best, ''
     
-    for i, resonator_parameters in enumerate(result.x.reshape(-1,3)):
+    for i, resonator_parameters in enumerate(solution.reshape(-1,3)):
         print('Resonator {}'.format(i+1))
         print('Rt = {:.2e} [Ohm/m], Q = {:.2f}, fres = {:.2e} [Hz]'.format(*resonator_parameters))
         print('-'*60)
     
-    return result.x, warning + result.message
+    return solution, message
