@@ -53,7 +53,7 @@ def sumOfSquaredError(parameters, fit_function, x, y):
         y: Array of y values for the data (including real and imaginary parts).
 
     Returns:
-        The sum of squared errors (SSE).
+        float: The sum of squared errors (SSE).
     """
 
     grouped_parameters = pars_to_dict(parameters)
@@ -75,7 +75,7 @@ def sumOfSquaredErrorReal(pars, fitFunction, x, y):
         y: Array of y values for the data (including only the real part).
 
     Returns:
-        The real sum of squared errors (SSE).
+        float: The real sum of squared errors (SSE).
     """
 
     grouped_parameters = pars_to_dict(parameters)
@@ -97,7 +97,7 @@ def logsumOfSquaredError(parameters, fitFunction, x, y):
         y: Array of y values for the data (including real and imaginary parts).
 
     Returns:
-        The sum of log squared errors.
+        float: The sum of log squared errors.
     """
     grouped_parameters = pars_to_dict(parameters)
     predicted_y = fitFunction(x, grouped_parameters)
@@ -119,7 +119,7 @@ def logsumOfSquaredErrorReal(parameters, fitFunction, x, y):
         y: Array of y values for the data (including only the real part).
 
     Returns:
-        The real sum of log squared errors.
+        float: The real sum of log squared errors.
     """
     
     grouped_parameters = pars_to_dict(parameters)
