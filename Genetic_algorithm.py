@@ -9,12 +9,11 @@ import sys
 from functools import partial
 import numpy as np
 from scipy.optimize import differential_evolution
-import pyfde
+from pyfde import ClassicDE, JADE
 
 def progress_bar_gui(total, progress, extra=""):
     """
     Displays or updates a console progress bar.
-
     Original source: https://stackoverflow.com/a/15860757/1391441
     """
     barLength, status = 20, ""
@@ -32,15 +31,12 @@ def progress_bar_gui(total, progress, extra=""):
     else:
         sys.stdout.write(text)
         sys.stdout.flush()
-        
-
-params_each_iteration = []
-progress = []
     
-def progress_bar(x, convergence, *karg):
-    progress.append(convergence)
-    params_each_iteration.append(x)
-    progress_bar_gui(1, progress[-1], extra="")
+def show_progress_bar(x, convergence, *karg):
+    """
+    Callback function to display a progress bar with scipy.
+    """
+    progress_bar_gui(1, convergence, extra="")
     
 def stop_criterion(solver):
     '''
@@ -55,97 +51,215 @@ def stop_criterion(solver):
     criterion = population_std / np.abs(population_mean)
     return criterion
 
+def run_scipy_solver(parameterBounds, 
+                     minimization_function,
+                     maxiter=2000, 
+                     popsize=150, 
+                     mutation=(0.1, 0.5), 
+                     crossover_rate=0.8,
+                     tol=0.01):
+    """
+    Runs the SciPy differential_evolution solver to minimize a given function.
+    
+    All the arguments are detailed on this page :
+    (https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html)
+    Setting workers= -1 means all CPUs available will be used for the computation.
+    Default parameters used for the DE algorithm taken from https://www.mdpi.com/2227-7390/9/4/427
+
+    Args:
+        parameter_bounds: A list of tuples representing the upper and lower bounds for each parameter.
+        minimization_function: The function to be minimized.
+        maxiter: The maximum number of iterations to run the solver for.
+        popsize: The population size for the differential evolution algorithm.
+        mutation: A tuple of two floats representing the mutation factors.
+        crossover_rate: The crossover rate for the differential evolution algorithm.
+        tol: The tolerance for convergence.
+
+    Returns:
+        A tuple containing:
+            - The solution found by the solver.
+            - A message indicating the solver's status.
+    """    
+    result = differential_evolution(minimization_function, 
+                                    parameterBounds, 
+                                    popsize=popsize, 
+                                    tol=tol, 
+                                    maxiter=maxiter,
+                                    mutation=mutation, 
+                                    recombination=crossover_rate, 
+                                    polish=False, 
+                                    init='latinhypercube',
+                                    callback=show_progress_bar,
+                                    updating='deferred', 
+                                    workers=-1, #vectorized=vectorized
+                                   )
+    
+    # Need to be reworked to use the last population as the new initial population to speed up convergence
+    """while ((result.message == 'Maximum number of iterations has been exceeded.') and (iteration_convergence)):
+        warning = 'Increased number of iterations by 10% to reach convergence. \n'
+        maxiter = int(1.1*maxiter)
+        result = differential_evolution(minimization_function,parameterBounds, 
+                                        popsize=popsize, tol=tol, maxiter=maxiter,
+                                        mutation=mutation, recombination=crossover_rate, polish=False, 
+                                        init='latinhypercube',
+                                        callback=show_progress_bar,
+                                        updating='deferred', workers=-1, #vectorized=vectorized
+                                       )
+
+    else:
+        warning = ''
+    """
+    
+    solution, message = result.x, result.message
+
+    return solution, message
+
+
+def run_pyfde_solver(parameterBounds, 
+                     minimization_function,
+                     maxiter=2000, 
+                     popsize=150, 
+                     mutation=(0.3, 0.5), 
+                     crossover_rate=0.8,
+                     tol=0.01):
+    """
+    Runs the pyfde ClassicDE solver to minimize a given function.
+
+    Args:
+        parameter_bounds: A list of tuples representing the bounds for each parameter.
+        minimization_function: The function to be minimized.
+        maxiter: The maximum number of iterations to run the solver for.
+        popsize: The population size for the differential evolution algorithm.
+        mutation: A tuple of two floats representing the mutation factors.
+        crossover_rate: The crossover rate for the differential evolution algorithm.
+        tol: The tolerance for convergence.
+
+    Returns:
+        A tuple containing:
+            - The solution found by the solver.
+            - A message indicating the solver's status.
+    """
+
+    solver = ClassicDE(
+        minimization_function,
+        n_dim=len(parameter_bounds),
+        n_pop=popsize * len(parameter_bounds),
+        limits=parameter_bounds,
+        minimize=True,
+    )    
+    solver.cr, solver.f = crossover_rate, np.mean(mutation)
+
+    for i in range(maxiter):
+        best, _ = solver.run(n_it=1)
+        progress_bar_gui(1, np.max((tol / stop_criterion(solver), i / maxiter)))
+        if stop_criterion(solver) < tol:
+            break
+
+    solution, message = best, "Convergence achieved" if i < maxiter else "Maximum iterations reached"
+
+    return solution, message
+
+def run_pyfde_jade_solver(parameterBounds, 
+                          minimization_function,
+                          maxiter=2000, 
+                          popsize=150, 
+                          tol=0.01):
+    """
+    Runs the pyfde JADE solver to minimize a given function.
+
+    Args:
+        parameter_bounds: A list of tuples representing the bounds for each parameter.
+        minimization_function: The function to be minimized.
+        maxiter: The maximum number of iterations to run the solver for.
+        popsize: The population size for the differential evolution algorithm.
+        tol: The tolerance for convergence.
+
+    Returns:
+        A tuple containing:
+            - The solution found by the solver.
+            - A message indicating the solver's status.
+    """
+    solver = JADE(
+        minimization_function,
+        n_dim=len(parameter_bounds),
+        n_pop=popsize * len(parameter_bounds),
+        limits=parameter_bounds,
+        minimize=True,
+    )
+
+    for i in range(maxiter):
+        best, _ = solver.run(n_it=1)
+        progress_bar_gui(1, np.max((tol / stop_criterion(solver), i / maxiter)))
+        if stop_criterion(solver) < tol:
+            break
+
+    solution, message = best, "Convergence achieved" if i < maxiter else "Maximum iterations reached"
+
+    return solution, message
+
 def generate_Initial_Parameters(parameterBounds, minimizationFunction, fitFunction,
                                 x_values_data, y_values_data,
                                 maxiter=2000, popsize=150, 
                                 mutation=(0.1, 0.5), crossover_rate=0.8,
                                 tol=0.01,
                                 solver='scipy',
-                                #workers=-1, vectorized=False,
-                                #iteration_convergence=False
-                               ):
+                               ):    
+    """
+    Generates initial parameter guesses for a minimization algorithm.
 
-    """ This function allows to generate adequate initial guesses to use in the minimization algorithm.
-    In this step we do not necessarily need to have converged results. Approximate results are enough.
-    We use the complex sum of squared errors (sumOfSquaredError) as a loss function, it can be changed
-    depending on the problem type.
-    One can tweak the number of iterations (maxiter) to stop the algorithm earlier for faster computing time.
-    All the arguments are detailed on this page :
-    (https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html)
-    Setting workers= -1 means all CPUs available will be used for the computation.
-    Parameters used for the DE algorithm taken from https://www.mdpi.com/2227-7390/9/4/427
+    This function uses a differential evolution (DE) solver to find approximate
+    solutions to a minimization problem, which can be used as initial guesses for
+    more precise optimizers.
+
+    Args:
+        parameter_bounds: A list of tuples representing the upper and lower bounds
+                         for each parameter.
+        minimization_function: A function that calculates the cost given a set of
+                         parameters and data. The signature should be
+                         `minimization_function(parameters, fit_function, x_data, y_data)`.
+        fit_function: A function that calculates the fit between a model and data.
+                       The signature should be `fit_function(parameters, x_data, y_data)`.
+        x_values_data: The x-values of the data to fit.
+        y_values_data: The y-values of the data to fit.
+        maxiter: The maximum number of iterations for the DE solver.
+        popsize: The population size for the DE algorithm.
+        mutation: A tuple of two floats representing the mutation factors.
+        crossover_rate: The crossover rate for the DE algorithm.
+        tol: The tolerance for convergence.
+        solver: The solver to use for differential evolution. Valid options are
+                "scipy", "pyfde", or "pyfde_jade". Defaults to "scipy".
+
+    Returns:
+        A tuple containing:
+            - The estimated initial parameters found by the DE solver.
+            - A message indicating the solver's status.
     """
 
     
-    minimization_function = partial(minimizationFunction, fitFunction=fitFunction,
-                                    x=x_values_data, y=y_values_data)
+    minimization_function = partial(minimizationFunction, 
+                                    fitFunction=fitFunction,
+                                    x=x_values_data, 
+                                    y=y_values_data
+                                   )
     
-    if solver == 'scipy':
-        result = differential_evolution(minimization_function, parameterBounds, 
-                                        popsize=popsize, tol=tol, maxiter=maxiter,
-                                        mutation=mutation, recombination=crossover_rate, polish=False, 
-                                        init='latinhypercube',
-                                        callback=progress_bar,
-                                        updating='deferred', workers=-1, #vectorized=vectorized
+    # Map solver names to functions
+    solver_functions = {
+        "scipy": run_scipy_solver,
+        "pyfde": run_pyfde_solver,
+        "pyfde_jade": run_pyfde_jade_solver,
+    }
+
+    solver_function = solver_functions.get(solver_name)
+    if not solver_function:
+        raise ValueError(f"Invalid solver name: {solver_name}")
+        
+    solution, message = solver_function(parameterBounds, 
+                                        minimization_function,
+                                        maxiter=maxiter, 
+                                        popsize=popsize, 
+                                        mutation=mutation, 
+                                        crossover_rate=crossover_rate,
+                                        tol=tol
                                        )
-
-        # Need to be reworked to use the last population as the new initial population to speed up convergence
-        """while ((result.message == 'Maximum number of iterations has been exceeded.') and (iteration_convergence)):
-            warning = 'Increased number of iterations by 10% to reach convergence. \n'
-            maxiter = int(1.1*maxiter)
-            result = differential_evolution(minimization_function,parameterBounds, 
-                                            popsize=popsize, tol=tol, maxiter=maxiter,
-                                            mutation=mutation, recombination=crossover_rate, polish=False, 
-                                            init='latinhypercube',
-                                            callback=progress_bar,
-                                            updating='deferred', workers=-1, #vectorized=vectorized
-                                           )
-
-        else:
-            warning = ''
-        """
-        
-        solution, message = result.x, result.message
-        
-        params_each_iteration = []
-        progress = []
-        
-    elif solver == 'pyfde':
-        solver = pyfde.ClassicDE(minimization_function, n_dim=len(parameterBounds), n_pop=popsize*len(parameterBounds), 
-                                 limits=parameterBounds, minimize=True)
-        solver.cr, solver.f = crossover_rate, np.mean(mutation)
-
-        for i in range(maxiter):
-            #sys.stdout.write('\r{}/{}'.format(i, max_it))
-            best, _ = solver.run(n_it=1)
-            progress_bar_gui(1, np.max((tol/stop_criterion(solver), i/maxiter)))
-            if stop_criterion(solver) < tol:
-                break
-            else:
-                continue
-                
-        solution, message = best, ''
-
-        
-    elif solver == 'pyfde_jade':
-        
-        solver = pyfde.JADE(minimization_function, n_dim=len(parameterBounds), n_pop=popsize*len(parameterBounds), 
-                                 limits=parameterBounds, minimize=True)
-
-        for i in range(maxiter):
-            #sys.stdout.write('\r{}/{}'.format(i, max_it))
-            best, _ = solver.run(n_it=1)
-            progress_bar_gui(1, np.max((tol/stop_criterion(solver), i/maxiter)))
-            if stop_criterion(solver) < tol:
-                break
-            else:
-                continue
-                
-        solution, message = best, ''
-    
-    for i, resonator_parameters in enumerate(solution.reshape(-1,3)):
-        print('Resonator {}'.format(i+1))
-        print('Rt = {:.2e} [Ohm/m], Q = {:.2f}, fres = {:.2e} [Hz]'.format(*resonator_parameters))
-        print('-'*60)
     
     return solution, message
