@@ -7,96 +7,502 @@ Created on Mon Mar 23 13:20:11 2020
 """
 import numpy as np
 
-""" All formulas used come from E. Metral USPAS lecture, availible here :
-    http://emetral.web.cern.ch/emetral/USPAS09course/WakeFieldsAndImpedances.pdf """
-     
+# Longitudinal and transverse impedance functions
 def Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency):
-    Zl = Rs / (1 + 1j*Q*(
-            frequencies/resonant_frequency - resonant_frequency/frequencies))
+    """Calculates the longitudinal impedance of a resonator.
+
+    This function calculates the longitudinal impedance of a resonator 
+    with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
+    `resonant_frequency` at different frequencies `frequencies`.
+
+    Args:
+        frequencies (np.ndarray): Array of frequencies values in Hz.
+        Rs (float): Shunt impedance of the resonator in Ohm.
+        Q (float): Quality factor of the resonator.
+        resonant_frequency (float): Resonant frequency of the resonator in Hz.
+
+    Returns:
+        np.ndarray: Array of longitudinal impedance values [Ohm] at the corresponding frequencies.
+
+    Notes:
+        This formula uses the generalized impedance formula and
+        can be used for any real positive value of `Q`.
+        https://cds.cern.ch/record/192684/files/198812060.pdf
+        Moreover, it sets the impedance value to zero for zero frequencies.
+
+        Units for this formula are:
+            Rs: Ohm
+            Q: dimensionless
+            resonant_frequency: Hz
+
+    Examples:
+        >>> frequencies = np.linspace(0, 2.5e9, 1000)
+        >>> Rs = 1e6
+        >>> Q = 0.6
+        >>> resonant_frequency = 1e9
+        >>> impedance = Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency)
+        >>> plt.plot(frequencies, impedance)
+        >>> plt.xlabel("Frequency [Hz]")
+        >>> plt.ylabel("Longitudinal Impedance [Ohm]")
+        >>> plt.show()
+    """
+    zero_index = np.where(frequencies > 0)[0]  # find index of non-zero element
+    if zero_index.size < frequencies.size:
+        Zl = np.zeros_like(frequencies, dtype=complex)  # initialize Zl as 0
+        Zl[zero_index] = Rs / (1 + 1j*Q * (
+                frequencies[zero_index]/resonant_frequency - 
+            resonant_frequency/frequencies[zero_index])) # calculate all Zl for non-zero frequencies
+    else:
+        Zl = Rs / (1 + 1j*Q * (
+                frequencies/resonant_frequency - resonant_frequency/frequencies))
     return Zl
  
 def Resonator_transverse_imp(frequencies, Rs, Q, resonant_frequency):
-    Zt = resonant_frequency / frequencies * Rs / (1 + 1j*Q*(
-            frequencies/resonant_frequency - resonant_frequency/frequencies))
+    """Calculates the transverse impedance of a resonator.
+
+    This function calculates the transverse impedance of a resonator 
+    with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
+    `resonant_frequency` at different frequencies `frequencies`.
+
+    Args:
+        frequencies (np.ndarray): Array of frequencies values in Hz.
+        Rs (float): Shunt impedance of the resonator in Ohm/m.
+        Q (float): Quality factor of the resonator.
+        resonant_frequency (float): Resonant frequency of the resonator in Hz.
+
+    Returns:
+        np.ndarray: Array of transverse impedance values [Ohm/m] at the corresponding frequencies.
+
+    Notes:
+        This formula uses the generalized impedance formula and
+        can be used for any real positive value of `Q`.
+        https://cds.cern.ch/record/192684/files/198812060.pdf
+        Moreover, it sets the impedance value to zero for zero frequencies.
+
+        Units for this formula are:
+            Rs: Ohm/m
+            Q: dimensionless
+            resonant_frequency: Hz
+
+    Examples:
+        >>> frequencies = np.linspace(0, 2.5e9, 1000)
+        >>> Rs = 1e6
+        >>> Q = 0.6
+        >>> resonant_frequency = 1e9
+        >>> impedance = Resonator_transverse_imp(frequencies, Rs, Q, resonant_frequency)
+        >>> plt.plot(frequencies, impedance)
+        >>> plt.xlabel("Frequency [Hz]")
+        >>> plt.ylabel("Transverse Impedance [Ohm/m]")
+        >>> plt.show()
+    """
+    zero_index = np.where(frequencies > 0)[0]  # find index of non-zero element
+    if zero_index.size < frequencies.size:
+        Zt = np.zeros_like(frequencies, dtype=complex)  # initialize Zt as 0
+        Zt[zero_index] = resonant_frequency / frequencies[zero_index] * Rs / (1 + 1j*Q * (
+                frequencies[zero_index]/resonant_frequency - 
+            resonant_frequency/frequencies[zero_index])) # calculate all Zt for non-zero frequencies
+    else:
+        Zt = resonant_frequency / frequencies * Rs / (1 + 1j*Q * (
+                frequencies/resonant_frequency - resonant_frequency/frequencies))
     return Zt
 
 
 def n_Resonator_longitudinal_imp(frequencies, dict_params):
-    """
-    frequencies : frequencies used in broadband resonator formula
-    dict_params : dict where each key corresponds to a single resonator
-    resonator parameters are stored in a list following this format : 
-        [Rs, Q, resonant_frequency]
-    Example dict_params = {1: [1000000.0, 1, 1000000000.0],
-                           2 : [2000000.0, 1, 500000000.0]}
+    """Calculates the combined longitudinal impedance of multiple resonators.
+
+    This function calculates the total longitudinal impedance of a system consisting
+    of multiple resonators at different frequencies `frequencies`. Each resonator
+    is defined by its parameters provided in a dictionary `dict_params`.
+
+    Args:
+        frequencies (np.ndarray): Array of frequencies values in Hz.
+        dict_params (dict): Dictionary containing resonator parameters. Keys are
+            unique identifiers for each resonator, and values are lists containing
+            the parameters in the following order:
+                - Rs (float): Shunt impedance of the resonator in Ohm.
+                - Q (float): Quality factor of the resonator.
+                - resonant_frequency (float): Resonant frequency of the resonator in Hz.
+
+    Returns:
+        np.ndarray: Array of combined longitudinal impedance values [Ohm] at
+            the corresponding frequencies.
+
+    Examples:
+        >>> frequencies = np.linspace(0, 2.5e9, 1000)
+        >>> dict_params = {
+        ...     1: [1e6, 1, 1e9],
+        ...     2: [2e6, 1, 5e8],
+        ... }
+        >>> impedance = n_Resonator_longitudinal_imp(frequencies, dict_params)
+        >>> plt.plot(frequencies, impedance)
+        >>> plt.xlabel("Frequency [Hz]")
+        >>> plt.ylabel("Longitudinal Impedance [Ohm]")
+        >>> plt.show()
+
+    Notes:
+        - This function assumes all resonators have the same type of longitudinal
+            impedance formula implemented in `Resonator_longitudinal_imp`.
+        - The combined impedance is calculated by summing the individual
+            impedance contributions from each resonator at each frequency.
+        - Resonator parameters should be positive values (except for the shunt impedance).
+        Behavior for invalid values is not defined and may lead to errors.
     """
     Zl = sum(Resonator_longitudinal_imp(frequencies, *params) for params in dict_params.values())
     return Zl
 
 def n_Resonator_transverse_imp(frequencies, dict_params):
-    """
-    frequencies : frequencies used in broadband resonator formula
-    dict_params : dict where each key corresponds to a single resonator
-    resonator parameters are stored in a list following this format : 
-        [Rs, Q, resonant_frequency]
-    Example dict_params = {1: [1000000.0, 1, 1000000000.0],
-                           2 : [2000000.0, 1, 500000000.0]}
+    """Calculates the combined transverse impedance of multiple resonators.
+
+    This function calculates the total transverse impedance of a system consisting
+    of multiple resonators at different frequencies `frequencies`. Each resonator
+    is defined by its parameters provided in a dictionary `dict_params`.
+
+    Args:
+        frequencies (np.ndarray): Array of frequencies values in Hz.
+        dict_params (dict): Dictionary containing resonator parameters. Keys are
+            unique identifiers for each resonator, and values are lists containing
+            the parameters in the following order:
+                - Rs (float): Shunt impedance of the resonator in Ohm/m.
+                - Q (float): Quality factor of the resonator.
+                - resonant_frequency (float): Resonant frequency of the resonator in Hz.
+
+    Returns:
+        np.ndarray: Array of combined transverse impedance values [Ohm/m] at
+            the corresponding frequencies.
+
+    Examples:
+        >>> frequencies = np.linspace(0, 2.5e9, 1000)
+        >>> dict_params = {
+        ...     1: [1e6, 1, 1e9],
+        ...     2: [2e6, 1, 5e8],
+        ... }
+        >>> impedance = n_Resonator_transverse_imp(frequencies, dict_params)
+        >>> plt.plot(frequencies, impedance)
+        >>> plt.xlabel("Frequency [Hz]")
+        >>> plt.ylabel("Transverse Impedance [Ohm/m]")
+        >>> plt.show()
+
+    Notes:
+        - This function assumes all resonators have the same type of transverse
+            impedance formula implemented in `Resonator_transverse_imp`.
+        - The combined impedance is calculated by summing the individual
+            impedance contributions from each resonator at each frequency.
+        - Resonator parameters should be positive values (except for the shunt impedance).
+        Behavior for invalid values is not defined and may lead to errors.
     """
     Zt = sum(Resonator_transverse_imp(frequencies, *params) for params in dict_params.values())
     return Zt
 
+# Longitudinal and transverse wake functions
+def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):    
+    """Calculates the longitudinal wake function of a resonator.
 
-def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
-    """Be careful, units for this formula are Rs [Ohm/m], Q [], fres [hz]"""
-    return (Rs*2*np.pi*resonant_frequency)*np.exp(-2*np.pi*resonant_frequency*times/(2*Q))/Q*(np.cos(2*np.pi*resonant_frequency*np.sqrt(np.abs(1-(1/(4*Q*Q))))*times)+(-2*np.pi*resonant_frequency/(2*Q)/2*np.pi*resonant_frequency*np.sqrt(np.abs(1-(1/(4*Q*Q)))))*np.sin(2*np.pi*resonant_frequency*np.sqrt(np.abs(1-(1/(4*Q*Q))))*times))
+    This function calculates the longitudinal wake function of a resonator 
+    with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
+    `resonant_frequency` at different times `times`.
 
+    Args:
+        times (np.ndarray): Array of time values in seconds.
+        Rs (float): Shunt impedance of the resonator in Ohm.
+        Q (float): Quality factor of the resonator.
+        resonant_frequency (float): Resonant frequency of the resonator in Hz.
 
-def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
-    """Be careful, units for this formula are Rs [Ohm/m], Q [], fres [hz]"""
-    omega_r = 2*np.pi*resonant_frequency
-    omega_r_bar = omega_r*np.sqrt(np.abs(1-(1/(4*Q**2))))    
-    cos_term = np.cos(omega_r_bar*times)
-    sin_term = np.sin(omega_r_bar*times)
-    exp_term = np.exp(-omega_r*times/(2*Q))
-    return Rs*omega_r/Q*exp_term*(cos_term - omega_r / (2*Q*omega_r_bar)*sin_term)
+    Returns:
+        np.ndarray: Array of longitudinal wake function values [V/C] at the corresponding times.
+
+    Notes:
+        This formula uses the generalized wake function formula and
+        can be used for any real positive value of `Q`.
+        https://cds.cern.ch/record/192684/files/198812060.pdf
+
+        Units for this formula are:
+            Rs: Ohm
+            Q: dimensionless
+            resonant_frequency: Hz
+
+    Examples:
+        >>> times = np.linspace(0, 1e-9, 1000)
+        >>> Rs = 1e6
+        >>> Q = 0.6
+        >>> resonant_frequency = 1e9
+        >>> wake_function = Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency)
+        >>> plt.plot(times, wake_function)
+        >>> plt.xlabel("Time [s]")
+        >>> plt.ylabel("Longitudinal Wake Function [V/C]")
+        >>> plt.show()
+    """
+    
+    omega_r = 2 * np.pi * resonant_frequency
+    if Q == 0.5:
+        Wl = 2 * Rs * omega_r * np.exp(-omega_r * times) * (1 - omega_r * times)
+    elif Q < 0.5:
+        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1)
+        cos_term = np.cosh(omega_r_bar * times)
+        sin_term = np.sinh(omega_r_bar * times)
+        exp_term = np.exp(-omega_r * times/(2 * Q))
+        Wl = Rs * omega_r / Q * exp_term * (cos_term - omega_r / (2 * Q * omega_r_bar) * sin_term)
+    else:
+        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2)))
+        cos_term = np.cos(omega_r_bar * times)
+        sin_term = np.sin(omega_r_bar * times)
+        exp_term = np.exp(-omega_r * times/(2 * Q))
+        Wl = Rs * omega_r / Q * exp_term * (cos_term - omega_r / (2 * Q * omega_r_bar) * sin_term)
+
+    return Wl
 
 def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
-    """Be careful, units for this formula are Rs [Ohm/m], Q [], fres [hz]"""
-    return ((Rs*2*np.pi*resonant_frequency)/(Q*np.sqrt(np.abs(1-(1/(4*Q*Q))))))* np.exp(-1*np.pi*resonant_frequency*times/Q)*np.sin(2*np.pi*resonant_frequency*np.sqrt(np.abs(1-(1/(4*Q*Q))))*times)
+    """Calculates the longitudinal wake function of a resonator.
+
+    This function calculates the transverse wake function of a resonator 
+    with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
+    `resonant_frequency` at different times `times`.
+
+    Args:
+        times (np.ndarray): Array of time values in seconds.
+        Rs (float): Shunt impedance of the resonator in Ohm/m.
+        Q (float): Quality factor of the resonator.
+        resonant_frequency (float): Resonant frequency of the resonator in Hz.
+
+    Returns:
+        np.ndarray: Array of longitudinal wake function values [V/C/m] at the corresponding times.
+
+    Notes:
+        This formula uses the generalized wake function formula and
+        can be used for any real positive value of `Q`.
+        https://cds.cern.ch/record/192684/files/198812060.pdf
+
+        Units for this formula are:
+            Rs: Ohm/m
+            Q: dimensionless
+            resonant_frequency: Hz
+
+    Examples:
+        >>> times = np.linspace(0, 1e-9, 1000)
+        >>> Rs = 1e6
+        >>> Q = 0.6
+        >>> resonant_frequency = 1e9
+        >>> wake_function = Resonator_transverse_wake(times, Rs, Q, resonant_frequency)
+        >>> plt.plot(times, wake_function)
+        >>> plt.xlabel("Time [s]")
+        >>> plt.ylabel("Transverse Wake Function [V/C]")
+        >>> plt.show()
+    """
+    
+    omega_r = 2 * np.pi * resonant_frequency
+    exp_term = np.exp(-omega_r * times / 2 / Q)
+    if Q == 0.5:
+        Wt = omega_r**2 * Rs / Q * exp_term * times
+    elif Q < 0.5:
+        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1) 
+        sqrt_term = np.sqrt((1 /(4 * Q * Q)) - 1)
+        sin_term = np.sinh(omega_r * sqrt_term * times)     
+        Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
+    else:
+        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2))) 
+        sqrt_term = np.sqrt(1 - (1 /(4 * Q * Q)))
+        sin_term = np.sin(omega_r * sqrt_term * times)
+        Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
+
+    return Wt
+
+def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):    
+    """Calculates the longitudinal wake function of a resonator.
+
+    This function calculates the longitudinal wake function of a resonator 
+    with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
+    `resonant_frequency` at different times `times`.
+
+    Args:
+        times (np.ndarray): Array of time values in seconds.
+        Rs (float): Shunt impedance of the resonator in Ohm.
+        Q (float): Quality factor of the resonator.
+        resonant_frequency (float): Resonant frequency of the resonator in Hz.
+
+    Returns:
+        np.ndarray: Array of longitudinal wake function values [V/C] at the corresponding times.
+
+    Notes:
+        This formula uses the generalized wake function formula and
+        can be used for any real positive value of `Q`.
+        https://cds.cern.ch/record/192684/files/198812060.pdf
+
+        Units for this formula are:
+            Rs: Ohm
+            Q: dimensionless
+            resonant_frequency: Hz
+
+    Examples:
+        >>> times = np.linspace(0, 1e-9, 1000)
+        >>> Rs = 1e6
+        >>> Q = 0.6
+        >>> resonant_frequency = 1e9
+        >>> wake_function = Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency)
+        >>> plt.plot(times, wake_function)
+        >>> plt.xlabel("Time [s]")
+        >>> plt.ylabel("Longitudinal Wake Function [V/C]")
+        >>> plt.show()
+    """
+    
+    omega_r = 2 * np.pi * resonant_frequency
+    if Q == 0.5:
+        Wl = 2 * Rs * omega_r * np.exp(-omega_r * times) * (1 - omega_r * times)
+    elif Q < 0.5:
+        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1)
+        cos_term = np.cosh(omega_r_bar * times)
+        sin_term = np.sinh(omega_r_bar * times)
+        exp_term = np.exp(-omega_r * times/(2 * Q))
+        Wl = Rs * omega_r / Q * exp_term * (cos_term - omega_r / (2 * Q * omega_r_bar) * sin_term)
+    else:
+        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2)))
+        cos_term = np.cos(omega_r_bar * times)
+        sin_term = np.sin(omega_r_bar * times)
+        exp_term = np.exp(-omega_r * times/(2 * Q))
+        Wl = Rs * omega_r / Q * exp_term * (cos_term - omega_r / (2 * Q * omega_r_bar) * sin_term)
+
+    return Wl
 
 def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
-    """Be careful, units for this formula are Rs [Ohm/m], Q [], fres [hz]"""
-    omega_r = 2*np.pi*resonant_frequency
-    omega_r_bar = omega_r*np.sqrt(np.abs(1-(1/(4*Q**2))))
-    sqrt_term = np.sqrt(np.abs(1-(1/(4*Q*Q))))
-    exp_term = np.exp(-omega_r*times/2/Q)
-    sin_term = np.sin(omega_r*sqrt_term*times)
-    return omega_r**2*Rs/(Q*omega_r_bar) * exp_term * sin_term
+    """Calculates the longitudinal wake function of a resonator.
+
+    This function calculates the transverse wake function of a resonator 
+    with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
+    `resonant_frequency` at different times `times`.
+
+    Args:
+        times (np.ndarray): Array of time values in seconds.
+        Rs (float): Shunt impedance of the resonator in Ohm/m.
+        Q (float): Quality factor of the resonator.
+        resonant_frequency (float): Resonant frequency of the resonator in Hz.
+
+    Returns:
+        np.ndarray: Array of longitudinal wake function values [V/C/m] at the corresponding times.
+
+    Notes:
+        This formula uses the generalized wake function formula and
+        can be used for any real positive value of `Q`.
+        https://cds.cern.ch/record/192684/files/198812060.pdf
+
+        Units for this formula are:
+            Rs: Ohm/m
+            Q: dimensionless
+            resonant_frequency: Hz
+
+    Examples:
+        >>> times = np.linspace(0, 1e-9, 1000)
+        >>> Rs = 1e6
+        >>> Q = 0.6
+        >>> resonant_frequency = 1e9
+        >>> wake_function = Resonator_transverse_wake(times, Rs, Q, resonant_frequency)
+        >>> plt.plot(times, wake_function)
+        >>> plt.xlabel("Time [s]")
+        >>> plt.ylabel("Transverse Wake Function [V/C]")
+        >>> plt.show()
+    """
+    
+    omega_r = 2 * np.pi * resonant_frequency
+    exp_term = np.exp(-omega_r * times / 2 / Q)
+    if Q == 0.5:
+        Wt = omega_r**2 * Rs / Q * exp_term * times
+    elif Q < 0.5:
+        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1) 
+        sqrt_term = np.sqrt((1 /(4 * Q * Q)) - 1)
+        sin_term = np.sinh(omega_r * sqrt_term * times)     
+        Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
+    else:
+        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2))) 
+        sqrt_term = np.sqrt(1 - (1 /(4 * Q * Q)))
+        sin_term = np.sin(omega_r * sqrt_term * times)
+        Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
+
+    return Wt
 
 def n_Resonator_longitudinal_wake(times, dict_params):
-    """
-    frequencies : frequencies used in broadband resonator formula
-    dict_params : dict where each key corresponds to a single resonator
-    resonator parameters are stored in a list following this format : 
-        [Rs, Q, resonant_frequency]
-    Example dict_params = {1: [1000000.0, 1, 1000000000.0],
-                           2 : [2000000.0, 1, 500000000.0]}
+    """Calculates the combined longitudinal wake function of multiple resonators.
+
+    This function calculates the total longitudinal wake function induced by a system
+    consisting of multiple resonators at different times `times`. Each resonator
+    is defined by its parameters provided in a dictionary `dict_params`.
+
+    Args:
+        times (np.ndarray): Array of time values in seconds.
+        dict_params (dict): Dictionary containing resonator parameters. Keys are
+            unique identifiers for each resonator, and values are lists containing
+            the parameters in the following order:
+                - Rs (float): Shunt impedance of the resonator in Ohm.
+                - Q (float): Quality factor of the resonator.
+                - resonant_frequency (float): Resonant frequency of the resonator in Hz.
+
+    Returns:
+        np.ndarray: Array of combined transverse wake function values [V/C] at
+            the corresponding times.
+
+    Examples:
+        >>> times = np.linspace(0, 1e-9, 1000)
+        >>> dict_params = {
+        ...     1: [1e6, 1, 1e9],
+        ...     2: [2e6, 1, 5e8],
+        ... }
+        >>> wake_function = n_Resonator_longitudinal_wake(times, dict_params)
+        >>> plt.plot(times, wake_function)
+        >>> plt.xlabel("Time [s]")
+        >>> plt.ylabel("Longitudinal Wake Function [V/C]")
+        >>> plt.show()
+
+    Notes:
+        - This function assumes all resonators have the same type of longitudinal
+            wake function formula implemented in `Resonator_longitudinal_wake`.
+        - The combined wake function is calculated by summing the individual
+            wake function contributions from each resonator at each time step.
+        - Resonator parameters should be positive values (except for the shunt impedance).
+        Behavior for invalid values is not defined and may lead to errors.
     """
     Wl = sum(Resonator_longitudinal_wake(times, *params) for params in dict_params.values())
     return Wl
 
 def n_Resonator_transverse_wake(times, dict_params):
-    """
-    frequencies : frequencies used in broadband resonator formula
-    dict_params : dict where each key corresponds to a single resonator
-    resonator parameters are stored in a list following this format : 
-        [Rs, Q, resonant_frequency]
-    Example dict_params = {1: [1000000.0, 1, 1000000000.0],
-                           2 : [2000000.0, 1, 500000000.0]}
+    """Calculates the combined transverse wake function of multiple resonators.
+
+    This function calculates the total transverse wake function induced by a system
+    consisting of multiple resonators at different times `times`. Each resonator
+    is defined by its parameters provided in a dictionary `dict_params`.
+
+    Args:
+        times (np.ndarray): Array of time values in seconds.
+        dict_params (dict): Dictionary containing resonator parameters. Keys are
+            unique identifiers for each resonator, and values are lists containing
+            the parameters in the following order:
+                - Rs (float): Shunt impedance of the resonator in Ohm/m.
+                - Q (float): Quality factor of the resonator.
+                - resonant_frequency (float): Resonant frequency of the resonator in Hz.
+
+    Returns:
+        np.ndarray: Array of combined transverse wake function values [V/C/m] at
+            the corresponding times.
+
+    Examples:
+        >>> times = np.linspace(0, 1e-9, 1000)
+        >>> dict_params = {
+        ...     1: [1e6, 1, 1e9],
+        ...     2: [2e6, 1, 5e8],
+        ... }
+        >>> wake_function = n_Resonator_transverse_wake(times, dict_params)
+        >>> plt.plot(times, wake_function)
+        >>> plt.xlabel("Time [s]")
+        >>> plt.ylabel("Transverse Wake Function [V/C/m]")
+        >>> plt.show()
+
+    Notes:
+        - This function assumes all resonators have the same type of transverse
+            wake function formula implemented in `Resonator_transverse_wake`.
+        - The combined wake function is calculated by summing the individual
+            wake function contributions from each resonator at each time step.
+        - Resonator parameters should be positive values (except for the shunt impedance).
+        Behavior for invalid values is not defined and may lead to errors.
     """
     Wt = sum(Resonator_transverse_wake(times, *params) for params in dict_params.values())
     return Wt
 
+# Extra function to compute the transverse wake potential of a resonator
 def Resonator_potential_transverse_wake(times, sigma, Rs, Q, resonant_frequency):
     """Be careful, units for this formula are Rs [Ohm/m], Q [], fres [hz]"""
     Q_prime = np.sqrt(Q**2 - 1/4)
