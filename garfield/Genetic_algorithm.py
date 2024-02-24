@@ -10,27 +10,35 @@ from functools import partial
 import numpy as np
 from scipy.optimize import differential_evolution
 from pyfde import ClassicDE, JADE
-
+        
 def progress_bar_gui(total, progress, extra=""):
-    """
-    Displays or updates a console progress bar.
+    """Displays or updates a console progress bar.
+
+    Args:
+        total (int): The total number of steps in the algorithm.
+        progress (int): The current progress (number of completed steps).
+        extra (str, optional): An extra string to append to the progress bar. Defaults to "".
+
     Original source: https://stackoverflow.com/a/15860757/1391441
     """
-    barLength, status = 20, ""
-    progress = float(progress) / float(total)
-    if progress >= 1.:
-        progress, status = 1, "\r\n"
-    block = int(round(barLength * progress))
-    text = "\r Convergence to optimal solution : [{}] {:.0f}% {}{}".format(
-        "#" * block + "-" * (barLength - block),
-        round(progress * 100, 0), extra, status)
-    if 100 * progress // 1 == 100:
-        text = "\r Convergence to optimal solution : [{}] 100%\n".format("#" * 20)
-        sys.stdout.write(text)
-        sys.stdout.flush()
-    else:
-        sys.stdout.write(text)
-        sys.stdout.flush()
+
+    bar_length = 20  # Set constant bar length
+    completed_blocks = int(round(bar_length * progress / total))
+    remaining_blocks = bar_length - completed_blocks
+    progress_percentage = round(progress / total * 100, 0)
+    progress_percentage = int(progress / total * 100)
+
+    # Build the progress bar string with different symbols
+    symbols = ['#', '-']  # Define progress and remaining symbols
+    progress_bar = "[" + ''.join(completed_blocks * symbols[0] + remaining_blocks * symbols[1]) + "]"
+    status = f"\rProgress: {progress_bar} {progress_percentage}% {extra}"
+
+    # Update the progress bar with a newline when reaching 100%
+    if progress_percentage >= 100:
+        status = f"\rProgress: {progress_bar} {100}% {extra}" + "\n"
+
+    sys.stdout.write(status)
+    sys.stdout.flush()
     
 def show_progress_bar(x, convergence, *karg):
     """
@@ -90,6 +98,7 @@ def run_scipy_solver(parameterBounds,
                                     recombination=crossover_rate, 
                                     polish=False, 
                                     init='latinhypercube',
+                                    strategy='rand1bin',
                                     callback=show_progress_bar,
                                     updating='deferred', 
                                     workers=-1, #vectorized=vectorized
@@ -120,7 +129,7 @@ def run_pyfde_solver(parameterBounds,
                      minimization_function,
                      maxiter=2000, 
                      popsize=150, 
-                     mutation=(0.3, 0.5), 
+                     mutation=(0.45), 
                      crossover_rate=0.8,
                      tol=0.01,
                     **kwargs):
@@ -149,7 +158,7 @@ def run_pyfde_solver(parameterBounds,
         limits=parameterBounds,
         minimize=True,
     )    
-    solver.cr, solver.f = crossover_rate, np.mean(mutation)
+    solver.cr, solver.f = crossover_rate, np.mean(np.atleast_1d(mutation))
 
     for i in range(maxiter):
         best, _ = solver.run(n_it=1)
