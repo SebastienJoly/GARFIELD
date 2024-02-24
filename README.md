@@ -1,5 +1,6 @@
 ![plot](./logo.png)
 
+<img src='https://raw.githubusercontent.com/SebastienJoly/GARFIELD/main/logo.png)'/ width="350">
 # GARFIELD
 Genetic Algorithm Resonator Fitting for Impedance ExtrapoLation and Determination
 
