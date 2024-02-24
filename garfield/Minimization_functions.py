@@ -58,7 +58,7 @@ def sumOfSquaredError(parameters, fitFunction, x, y):
     squared_error = np.nansum((y.real - predicted_y.real)**2 + (y.imag - predicted_y.imag)**2)
     return squared_error
 
-def sumOfSquaredErrorReal(pars, fitFunction, x, y):
+def sumOfSquaredErrorReal(parameters, fitFunction, x, y):
     """Calculates the real sum of squared errors (SSE) for a given fit function.
 
     This function computes the SSE between the predicted values from a fit function and
