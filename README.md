@@ -1,10 +1,11 @@
 # GARFIELD
 Genetic Algorithm Resonator Fitting for Impedance ExtrapoLation and Determination
 
-An example on how the script is working can be found in the notebook named "Final_version.ipynb"
+Example notebooks presenting the different resonator impedance and wake functions implemented as well as how to fit data with them can be found in the folder "examples".
 
 Roadmap :
-Add extrapolated resonator wake function and impedance formulas (with example).
-Add constraints on resonator parameters (i.e. forcing two resonators resonant frequency to be spaced more than a certain value).
+Add constraints on resonator parameters (i.e. forcing two resonator resonant frequencies to be spaced more than a certain value).
+Create a "smart bound determination" algorithm based on a peak finder and the resulting extracted peak properties.
+Study the capabilities of adaptative differential evolution algorithms to overcome the need to set a mutation constant and a crossover rate. 
 
 Author : Sébastien Joly (sebastien.joly@cern.ch)
