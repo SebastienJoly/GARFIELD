@@ -78,14 +78,14 @@ def Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency, wake_leng
                              "The wake is unlikely to be partially decayed"
                              "for such a low quality factor otherwise.")
             
-        #A = Rs * omega_r / 2 / Q
-        A = Rs * omega / 2 / Q # correct scaling to fit with usual formula
         B = omega_r / 2 / Q
         C = omega_r * np.sqrt(1 - 1 / 4 / Q**2)
         T = wake_length / c   
         
         zero_index = np.where(frequencies > 0)[0]  # find index of non-zero element
         if zero_index.size < frequencies.size:
+            #A = Rs * omega_r / 2 / Q
+            A = Rs * omega[zero_index] / 2 / Q # correct scaling to fit with usual formula
             exp_term = np.exp(-(B - 1j*(C - omega[zero_index])) * T)
             numerator = A * (1 - exp_term)
             denominator = B - 1j*(C - omega[zero_index])
@@ -94,6 +94,8 @@ def Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency, wake_leng
             Zl[zero_index] = numerator / denominator
 
         else:
+            #A = Rs * omega_r / 2 / Q
+            A = Rs * omega / 2 / Q # correct scaling to fit with usual formula
             exp_term = np.exp(-(B - 1j*(C - omega)) * T)
             numerator = A * (1 - exp_term)
             denominator = B - 1j*(C - omega)
