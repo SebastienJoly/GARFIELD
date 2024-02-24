@@ -32,6 +32,7 @@ def display_resonator_parameters(solution):
     header_format = "{:^10}|{:^24}|{:^18}|{:^18}"
     data_format = "{:^10d}|{:^24.2e}|{:^18.2f}|{:^18.3e}"
 
+    print("\n")
     print("-" * 70)
 
     # Print header
@@ -109,12 +110,12 @@ class GeneticAlgorithm:
             minimizationParameters = minimize(minimization_function, x0=self.geneticParameters, 
                             bounds=minimizationBounds,
                             method=method, options={'maxiter': 2000, 'disp': False,
-                                                   'ftol': 0.01})
+                                                   'ftol': 1e-6})
         else:
             print('Genetic algorithm not run, minimization only')
             minimizationParameters = minimize(minimization_function, x0=np.mean(self.parameterBounds, axis=1),
                             bounds=self.parameterBounds, 
                             method=method, options={'maxiter': 10000, 'disp': False,
-                                                   'ftol': 0.01}) 
+                                                   'ftol': 1e-6}) 
         self.minimizationParameters = minimizationParameters.x
         display_resonator_parameters(self.minimizationParameters)
