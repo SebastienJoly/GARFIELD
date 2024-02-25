@@ -46,10 +46,16 @@ def display_resonator_parameters(solution):
     print("-" * 70)
 
 class GeneticAlgorithm:
-    def __init__(self, frequency_data, impedance_data, 
-                 time_data, wake_data, 
-                 N_resonators, parameterBounds,
-                 minimizationFunction, fitFunction, iteration_convergence=False):
+    def __init__(self, 
+                 frequency_data, 
+                 impedance_data, 
+                 time_data, 
+                 wake_data, 
+                 N_resonators, 
+                 parameterBounds,
+                 minimizationFunction, 
+                 fitFunction
+                ):
     
         self.frequency_data = frequency_data
         self.impedance_data = impedance_data
@@ -61,6 +67,7 @@ class GeneticAlgorithm:
         self.fitFunction = fitFunction
         
         self.geneticParameters = None
+        self.minimizationParameters = None
                 
     def check_impedance_data(self):
         """
@@ -71,9 +78,14 @@ class GeneticAlgorithm:
         self.impedance_data = self.impedance_data[mask]
     
     
-    def run_geneticAlgorithm(self, maxiter=2000, popsize=15, 
-                             mutation=(0.1, 0.5), crossover_rate=0.8, 
-                             tol=0.01, #workers=-1, vectorized=False,
+    def run_geneticAlgorithm(self, 
+                             maxiter=2000, 
+                             popsize=15, 
+                             mutation=(0.1, 0.5), 
+                             crossover_rate=0.8, 
+                             tol=0.01, 
+                             #workers=-1, 
+                             vectorized=False,
                              solver='scipy',
                              iteration_convergence=False, debug=False):
         geneticParameters, warning = generate_Initial_Parameters(self.parameterBounds, 
@@ -95,7 +107,7 @@ class GeneticAlgorithm:
         self.warning = warning
         display_resonator_parameters(self.geneticParameters)
             
-    def run_minimizationAlgorithm(self, margin=0.1, method='L-BFGS-B'):
+    def run_minimizationAlgorithm(self, margin=0.1, method='Nelder-Mead'):
         """
         Minimization algorithm is used to refine results obtained by the genetic algorithm. 
         They are used as initial guess for the algorithm and each parameter is allowed to be
@@ -107,15 +119,27 @@ class GeneticAlgorithm:
         
         if self.geneticParameters is not None:
             minimizationBounds = [sorted(((1-margin)*p, (1+margin)*p)) for p in self.geneticParameters]
-            minimizationParameters = minimize(minimization_function, x0=self.geneticParameters, 
-                            bounds=minimizationBounds,
-                            method=method, options={'maxiter': 2000, 'disp': False,
-                                                   'ftol': 1e-6})
+            minimizationParameters = minimize(minimization_function, 
+                                              x0=self.geneticParameters,
+                                              bounds=minimizationBounds,
+                                              tol=1, #empiric value, documentation is cryptic
+                                              method=method, 
+                                              options={'maxiter': self.N_resonators * 1000,
+                                                       'maxfev': self.N_resonators * 1000,
+                                                       'disp': False,
+                                                       'adaptive': True}
+                                             )
         else:
             print('Genetic algorithm not run, minimization only')
-            minimizationParameters = minimize(minimization_function, x0=np.mean(self.parameterBounds, axis=1),
-                            bounds=self.parameterBounds, 
-                            method=method, options={'maxiter': 10000, 'disp': False,
-                                                   'ftol': 1e-6}) 
+            minimizationParameters = minimize(minimization_function, 
+                                              x0=np.mean(self.parameterBounds, axis=1),
+                                              bounds=self.parameterBounds, 
+                                              method=method, 
+                                              tol=1,
+                                              options={'maxiter': self.N_resonators * 5000,
+                                                       'maxfev': self.N_resonators * 5000,
+                                                       'disp': False,
+                                                       'adaptive': True}
+                                             ) 
         self.minimizationParameters = minimizationParameters.x
         display_resonator_parameters(self.minimizationParameters)
