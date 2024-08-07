@@ -6,6 +6,7 @@ Created on Mon Mar 23 13:20:11 2020
 @author: sjoly
 """
 import numpy as np
+from scipy import special as sp
 
 # Longitudinal and transverse impedance functions
 def Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency, wake_length=None):
@@ -403,117 +404,6 @@ def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
         sin_term = np.sin(omega_r * sqrt_term * times)
         Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
     Wt[times < 0] = 0.
-
-    return Wt
-
-def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
-    """Calculates the longitudinal wake function of a resonator.
-
-    This function calculates the longitudinal wake function of a resonator
-    with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
-    `resonant_frequency` at different times `times`.
-
-    Args:
-        times (np.ndarray): Array of time values in seconds.
-        Rs (float): Shunt impedance of the resonator in Ohm.
-        Q (float): Quality factor of the resonator.
-        resonant_frequency (float): Resonant frequency of the resonator in Hz.
-
-    Returns:
-        np.ndarray: Array of longitudinal wake function values [V/C] at the corresponding times.
-
-    Notes:
-        This formula uses the generalized wake function formula and
-        can be used for any real positive value of `Q`.
-        https://cds.cern.ch/record/192684/files/198812060.pdf
-
-        Units for this formula are:
-            Rs: Ohm
-            Q: dimensionless
-            resonant_frequency: Hz
-
-    Examples:
-        >>> times = np.linspace(0, 1e-9, 1000)
-        >>> Rs = 1e6
-        >>> Q = 0.6
-        >>> resonant_frequency = 1e9
-        >>> wake_function = Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency)
-        >>> plt.plot(times, wake_function)
-        >>> plt.xlabel("Time [s]")
-        >>> plt.ylabel("Longitudinal Wake Function [V/C]")
-        >>> plt.show()
-    """
-
-    omega_r = 2 * np.pi * resonant_frequency
-    if Q == 0.5:
-        Wl = 2 * Rs * omega_r * np.exp(-omega_r * times) * (1 - omega_r * times)
-    elif Q < 0.5:
-        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1)
-        cos_term = np.cosh(omega_r_bar * times)
-        sin_term = np.sinh(omega_r_bar * times)
-        exp_term = np.exp(-omega_r * times/(2 * Q))
-        Wl = Rs * omega_r / Q * exp_term * (cos_term - omega_r / (2 * Q * omega_r_bar) * sin_term)
-    else:
-        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2)))
-        cos_term = np.cos(omega_r_bar * times)
-        sin_term = np.sin(omega_r_bar * times)
-        exp_term = np.exp(-omega_r * times/(2 * Q))
-        Wl = Rs * omega_r / Q * exp_term * (cos_term - omega_r / (2 * Q * omega_r_bar) * sin_term)
-
-    return Wl
-
-def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
-    """Calculates the longitudinal wake function of a resonator.
-
-    This function calculates the transverse wake function of a resonator
-    with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
-    `resonant_frequency` at different times `times`.
-
-    Args:
-        times (np.ndarray): Array of time values in seconds.
-        Rs (float): Shunt impedance of the resonator in Ohm/m.
-        Q (float): Quality factor of the resonator.
-        resonant_frequency (float): Resonant frequency of the resonator in Hz.
-
-    Returns:
-        np.ndarray: Array of longitudinal wake function values [V/C/m] at the corresponding times.
-
-    Notes:
-        This formula uses the generalized wake function formula and
-        can be used for any real positive value of `Q`.
-        https://cds.cern.ch/record/192684/files/198812060.pdf
-
-        Units for this formula are:
-            Rs: Ohm/m
-            Q: dimensionless
-            resonant_frequency: Hz
-
-    Examples:
-        >>> times = np.linspace(0, 1e-9, 1000)
-        >>> Rs = 1e6
-        >>> Q = 0.6
-        >>> resonant_frequency = 1e9
-        >>> wake_function = Resonator_transverse_wake(times, Rs, Q, resonant_frequency)
-        >>> plt.plot(times, wake_function)
-        >>> plt.xlabel("Time [s]")
-        >>> plt.ylabel("Transverse Wake Function [V/C]")
-        >>> plt.show()
-    """
-
-    omega_r = 2 * np.pi * resonant_frequency
-    exp_term = np.exp(-omega_r * times / 2 / Q)
-    if Q == 0.5:
-        Wt = omega_r**2 * Rs / Q * exp_term * times
-    elif Q < 0.5:
-        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1)
-        sqrt_term = np.sqrt((1 /(4 * Q * Q)) - 1)
-        sin_term = np.sinh(omega_r * sqrt_term * times)
-        Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
-    else:
-        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2)))
-        sqrt_term = np.sqrt(1 - (1 /(4 * Q * Q)))
-        sin_term = np.sin(omega_r * sqrt_term * times)
-        Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
 
     return Wt
 
