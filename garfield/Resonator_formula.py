@@ -346,6 +346,7 @@ def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
         sin_term = np.sin(omega_r_bar * times)
         exp_term = np.exp(-omega_r * times/(2 * Q))
         Wl = Rs * omega_r / Q * exp_term * (cos_term - omega_r / (2 * Q * omega_r_bar) * sin_term)
+    Wl[times < 0] = 0.
 
     return Wl
 
@@ -401,6 +402,7 @@ def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
         sqrt_term = np.sqrt(1 - (1 /(4 * Q * Q)))
         sin_term = np.sin(omega_r * sqrt_term * times)
         Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
+    Wt[times < 0] = 0.
 
     return Wt
 
