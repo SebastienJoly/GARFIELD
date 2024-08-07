@@ -11,7 +11,7 @@ import numpy as np
 def Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency, wake_length=None):
     """Calculates the longitudinal impedance of a resonator.
 
-    This function calculates the longitudinal impedance of a resonator 
+    This function calculates the longitudinal impedance of a resonator
     with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
     `resonant_frequency` at different frequencies `frequencies`.
 
@@ -28,13 +28,13 @@ def Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency, wake_leng
         np.ndarray: Array of longitudinal impedance values [Ohm] at the corresponding frequencies.
 
     Notes:
-        The fully decayed formula uses the generalized impedance formula 
+        The fully decayed formula uses the generalized impedance formula
         (https://cds.cern.ch/record/192684/files/198812060.pdf) and can
         be used for any real positive value of `Q`.
-        
-        The partially decayed formula uses the formula derived in 
+
+        The partially decayed formula uses the formula derived in
         (Joly, S. thesis not published yet!)
-        
+
         Moreover, it sets the impedance value to zero for zero frequencies
         in both cases.
 
@@ -61,7 +61,7 @@ def Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency, wake_leng
         if zero_index.size < frequencies.size:
             Zl = np.zeros_like(frequencies, dtype=complex)  # initialize Zl as 0
             Zl[zero_index] = Rs / (1 + 1j*Q * (
-                    frequencies[zero_index]/resonant_frequency - 
+                    frequencies[zero_index]/resonant_frequency -
                 resonant_frequency/frequencies[zero_index])) # calculate all Zl for non-zero frequencies
         else:
             Zl = Rs / (1 + 1j*Q * (
@@ -72,16 +72,16 @@ def Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency, wake_leng
         omega = 2 * np.pi * frequencies
         omega_r = 2 * np.pi * resonant_frequency
         c = 299792458.0 # speed of light in vacuum
-    
+
         if Q < 0.5:
             raise ValueError("Quality factor Q must be larger than 0.5."
                              "The wake is unlikely to be partially decayed"
                              "for such a low quality factor otherwise.")
-            
+
         B = omega_r / 2 / Q
         C = omega_r * np.sqrt(1 - 1 / 4 / Q**2)
-        T = wake_length / c   
-        
+        T = wake_length / c
+
         zero_index = np.where(frequencies > 0)[0]  # find index of non-zero element
         if zero_index.size < frequencies.size:
             #A = Rs * omega_r / 2 / Q
@@ -100,9 +100,9 @@ def Resonator_longitudinal_imp(frequencies, Rs, Q, resonant_frequency, wake_leng
             numerator = A * (1 - exp_term)
             denominator = B - 1j*(C - omega)
             Zl = numerator / denominator
-        
+
     return Zl
- 
+
 def Resonator_transverse_imp(frequencies, Rs, Q, resonant_frequency, wake_length=None):
     """Calculates the transverse impedance of a resonator.
 
@@ -122,15 +122,15 @@ def Resonator_transverse_imp(frequencies, Rs, Q, resonant_frequency, wake_length
 
     Returns:
         np.ndarray: Array of transverse impedance values [Ohm/m] at the corresponding frequencies.
-        
+
     Notes:
-        The fully decayed formula uses the generalized impedance formula 
+        The fully decayed formula uses the generalized impedance formula
         (https://cds.cern.ch/record/192684/files/198812060.pdf) and can
         be used for any real positive value of `Q`.
-        
-        The partially decayed formula uses the formula derived in 
+
+        The partially decayed formula uses the formula derived in
         (Joly, S. thesis not published yet!)
-        
+
         Moreover, it sets the impedance value to zero for zero frequencies
         in both cases.
 
@@ -141,12 +141,12 @@ def Resonator_transverse_imp(frequencies, Rs, Q, resonant_frequency, wake_length
             wake_length: m
     """
     if wake_length is None:
-        # Fully decayed wake    
+        # Fully decayed wake
         zero_index = np.where(frequencies > 0)[0]  # find index of non-zero element
         if zero_index.size < frequencies.size:
             Zt = np.zeros_like(frequencies, dtype=complex)  # initialize Zt as 0
             Zt[zero_index] = resonant_frequency / frequencies[zero_index] * Rs / (1 + 1j*Q * (
-                    frequencies[zero_index]/resonant_frequency - 
+                    frequencies[zero_index]/resonant_frequency -
                 resonant_frequency/frequencies[zero_index])) # calculate all Zt for non-zero frequencies
 
         else:
@@ -158,17 +158,17 @@ def Resonator_transverse_imp(frequencies, Rs, Q, resonant_frequency, wake_length
         omega = 2 * np.pi * frequencies
         omega_r = 2 * np.pi * resonant_frequency
         c = 299792458.0 # speed of light in vacuum
-    
+
         if Q < 0.5:
             raise ValueError("Quality factor Q must be larger than 0.5."
                              "The wake is unlikely to be partially decayed"
                              "for such a low quality factor otherwise.")
-            
+
         A = Rs * omega_r / (Q * np.sqrt(1 - 1 / 4 / Q**2))
         B = omega_r / 2 / Q
         C = omega_r * np.sqrt(1 - 1 / 4 / Q**2)
-        T = wake_length / c   
-        
+        T = wake_length / c
+
         zero_index = np.where(frequencies > 0)[0]  # find index of non-zero element
         if zero_index.size < frequencies.size:
             exp_term = np.exp(-T * (B + 1j * omega[zero_index]))
@@ -282,7 +282,7 @@ def n_Resonator_transverse_imp(frequencies, dict_params, wake_length=None):
             impedance contributions from each resonator at each frequency.
         - Resonator parameters should be positive values (except for the shunt impedance).
         Behavior for invalid values is not defined and may lead to errors.
-    """   
+    """
     if wake_length is None:
         # Fully decayed wake
         Zt = sum(Resonator_transverse_imp(frequencies, *params) for params in dict_params.values())
@@ -293,10 +293,10 @@ def n_Resonator_transverse_imp(frequencies, dict_params, wake_length=None):
     return Zt
 
 # Longitudinal and transverse wake functions
-def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):    
+def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
     """Calculates the longitudinal wake function of a resonator.
 
-    This function calculates the longitudinal wake function of a resonator 
+    This function calculates the longitudinal wake function of a resonator
     with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
     `resonant_frequency` at different times `times`.
 
@@ -330,7 +330,7 @@ def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
         >>> plt.ylabel("Longitudinal Wake Function [V/C]")
         >>> plt.show()
     """
-    
+
     omega_r = 2 * np.pi * resonant_frequency
     if Q == 0.5:
         Wl = 2 * Rs * omega_r * np.exp(-omega_r * times) * (1 - omega_r * times)
@@ -353,7 +353,7 @@ def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
 def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
     """Calculates the longitudinal wake function of a resonator.
 
-    This function calculates the transverse wake function of a resonator 
+    This function calculates the transverse wake function of a resonator
     with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
     `resonant_frequency` at different times `times`.
 
@@ -387,18 +387,18 @@ def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
         >>> plt.ylabel("Transverse Wake Function [V/C]")
         >>> plt.show()
     """
-    
+
     omega_r = 2 * np.pi * resonant_frequency
     exp_term = np.exp(-omega_r * times / 2 / Q)
     if Q == 0.5:
         Wt = omega_r**2 * Rs / Q * exp_term * times
     elif Q < 0.5:
-        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1) 
+        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1)
         sqrt_term = np.sqrt((1 /(4 * Q * Q)) - 1)
-        sin_term = np.sinh(omega_r * sqrt_term * times)     
+        sin_term = np.sinh(omega_r * sqrt_term * times)
         Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
     else:
-        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2))) 
+        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2)))
         sqrt_term = np.sqrt(1 - (1 /(4 * Q * Q)))
         sin_term = np.sin(omega_r * sqrt_term * times)
         Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
@@ -406,10 +406,10 @@ def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
 
     return Wt
 
-def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):    
+def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
     """Calculates the longitudinal wake function of a resonator.
 
-    This function calculates the longitudinal wake function of a resonator 
+    This function calculates the longitudinal wake function of a resonator
     with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
     `resonant_frequency` at different times `times`.
 
@@ -443,7 +443,7 @@ def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
         >>> plt.ylabel("Longitudinal Wake Function [V/C]")
         >>> plt.show()
     """
-    
+
     omega_r = 2 * np.pi * resonant_frequency
     if Q == 0.5:
         Wl = 2 * Rs * omega_r * np.exp(-omega_r * times) * (1 - omega_r * times)
@@ -465,7 +465,7 @@ def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
 def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
     """Calculates the longitudinal wake function of a resonator.
 
-    This function calculates the transverse wake function of a resonator 
+    This function calculates the transverse wake function of a resonator
     with shunt impedance `Rs`, quality factor `Q`, and resonant frequency
     `resonant_frequency` at different times `times`.
 
@@ -499,18 +499,18 @@ def Resonator_transverse_wake(times, Rs, Q, resonant_frequency):
         >>> plt.ylabel("Transverse Wake Function [V/C]")
         >>> plt.show()
     """
-    
+
     omega_r = 2 * np.pi * resonant_frequency
     exp_term = np.exp(-omega_r * times / 2 / Q)
     if Q == 0.5:
         Wt = omega_r**2 * Rs / Q * exp_term * times
     elif Q < 0.5:
-        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1) 
+        omega_r_bar = omega_r * np.sqrt((1 / (4 * Q**2)) - 1)
         sqrt_term = np.sqrt((1 /(4 * Q * Q)) - 1)
-        sin_term = np.sinh(omega_r * sqrt_term * times)     
+        sin_term = np.sinh(omega_r * sqrt_term * times)
         Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
     else:
-        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2))) 
+        omega_r_bar = omega_r * np.sqrt(1 - (1 / (4 * Q**2)))
         sqrt_term = np.sqrt(1 - (1 /(4 * Q * Q)))
         sin_term = np.sin(omega_r * sqrt_term * times)
         Wt = omega_r**2 * Rs / (Q * omega_r_bar) * exp_term * sin_term
