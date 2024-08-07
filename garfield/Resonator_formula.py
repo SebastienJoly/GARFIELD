@@ -603,10 +603,100 @@ def n_Resonator_transverse_wake(times, dict_params):
     Wt = sum(Resonator_transverse_wake(times, *params) for params in dict_params.values())
     return Wt
 
-# Extra function to compute the transverse wake potential of a resonator
-def Resonator_potential_transverse_wake(times, sigma, Rs, Q, resonant_frequency):
-    """Be careful, units for this formula are Rs [Ohm/m], Q [], fres [hz]"""
-    Q_prime = np.sqrt(Q**2 - 1/4)
-    z1 = Q_prime/Q*2*np.pi*resonant_frequency*sigma + 1j*(np.pi*resonant_frequency*sigma/Q - times/sigma)
-    wt = 2*np.pi*resonant_frequency*Rs/2/Q_prime * np.exp(-times**2/2/sigma**2) * np.imag(erf(z1/np.sqrt(2)))
-    return wt
+# Longitudinal and transverse wake potentials
+def Resonator_longitudinal_wake_potential(times, sigma, Rs, Q, resonant_frequency, use_mpmath=False):
+    """
+    Single resonator wake potential (longitudinal) for a Gaussian bunch of line density.
+
+    Args:
+        Rs (float or list): Shunt impedance (Ohm).
+        resonant_frequency (float or list): Resonant frequency (Hz).
+        Q (float or list): Quality factor.
+        sigma (float): RMS bunch length (s).
+        times (array-like): Times (s) where wake is computed (times > 0 behind the source).
+        use_mpmath (bool, optional): Use mpmath for calculations. Defaults to False.
+
+    Returns:
+        np.ndarray: Wake potential at times `times`.
+
+    Notes:
+        The formula is from Chao's Handbook (p. 237, sec 3.2), partly re-derived by
+        N. Mounet. Equivalent formula in https://cds.cern.ch/record/192684/files/198812060.pdf
+        Q must be different from 0.5!
+        Rs, resonant_frequency, and Q must be scalar.
+    """
+    omegar = 2 * np.pi * resonant_frequency
+    kr = omegar * (1 - 1 / (4 * Q**2))**0.5
+    alphar = omegar / (2 * Q)
+    cstsin = -Rs * omegar**2 / (4 * Q**2 * kr)
+    cstcos = Rs * omegar / (2 * Q)
+
+    if use_mpmath:
+        from mpmath import erfc, exp, matrix, re, im
+        cst = exp((alphar**2 - kr**2) * sigma**2 / 2)
+        times_mp = matrix(times)
+        erfc_arg = -(times_mp - alphar * sigma**2 + 1j * kr * sigma**2) / (np.sqrt(2) * sigma)
+        erfc_v = erfc_arg.apply(erfc)
+        arg_expo1= -alphar * times_mp
+        expo1 = arg_expo1.apply(exp)
+        arg_expo2= 1j * (kr * times_mp - alphar * kr * sigma**2)
+        expo2 = arg_expo2.apply(exp)
+        im_expo_erfc = matrix([im(ex * er) for (ex, er) in zip(expo2, erfc_v)])
+        re_expo_erfc = matrix([re(ex * er) for (ex, er) in zip(expo2, erfc_v)])
+        W = np.hstack([cst * ex1 * (cstsin * im_exr + cstcos * re_exr) 
+                        for (ex1, im_exr, re_exr) in zip(expo1, im_expo_erfc, re_expo_erfc)])
+    else:
+        cst = np.exp((alphar**2 - kr**2) * sigma**2 / 2)
+        erfc_v = sp.erfc(-(times - alphar * sigma**2 + 1j * kr * sigma**2) / (np.sqrt(2) * sigma))
+        expo1 = np.exp(-alphar * times)
+        expo2 = np.exp(1j * (kr * times - alphar * kr * sigma**2))
+        W = cst * expo1 * (cstsin * np.imag(expo2 * erfc_v) + cstcos * np.real(expo2 * erfc_v))
+
+    return W
+
+def Resonator_transverse_wake_potential(times, sigma, Rs, Q, resonant_frequency, use_mpmath=False):
+    """
+    Single resonator wake potential (transverse) for a Gaussian bunch of line density.
+
+    Args:
+        Rs (float or list): Shunt impedance (Ohm).
+        resonant_frequency (float or list): Resonant frequency (Hz).
+        Q (float or list): Quality factor.
+        sigma (float): RMS bunch length (s).
+        times (array-like): Times (s) where wake is computed (times > 0 behind the source).
+        use_mpmath (bool, optional): Use mpmath for calculations. Defaults to False.
+
+    Returns:
+        np.ndarray: Wake potential at times `times`.
+
+    Notes:
+        The formula is from Chao's Handbook (p. 237, sec 3.2), partly re-derived by
+        N. Mounet. Equivalent formula in https://cds.cern.ch/record/192684/files/198812060.pdf
+        Q must be different from 0.5!
+        Rs, resonant_frequency, and Q must be scalar.
+    """
+
+    omegar = 2 * np.pi * resonant_frequency
+    kr = omegar * (1 - 1 / (4 * Q**2))**0.5
+    alphar = omegar / (2 * Q)
+
+    if use_mpmath:
+        from mpmath import erfc, exp, matrix, re, im
+        times_mp = matrix(times)
+        cst = Rs * omegar**2 / (2 * Q * kr) * exp((alphar**2 - kr**2) * sigma**2 / 2)
+        erfc_arg = -(times_mp - alphar * sigma**2 + 1j * kr * sigma**2) / (np.sqrt(2) * sigma)
+        erfc_v = erfc_arg.apply(erfc)
+        arg_expo1 = -alphar * times_mp
+        expo1 = arg_expo1.apply(exp)
+        arg_expo2= 1j * (kr * times_mp - alphar * kr * sigma**2)
+        expo2 = arg_expo2.apply(exp)
+        im_expo_erfc = matrix([im(ex * er) for (ex, er) in zip(expo2, erfc_v)])
+        W = np.hstack([cst * ex1 * im_exr for (ex1, im_exr) in zip(expo1, im_expo_erfc)])
+    else:
+        cst = Rs * omegar**2 / (2 * Q * kr) * np.exp((alphar**2 - kr**2) * sigma**2 / 2)
+        erf_v = sp.erf((times - alphar * sigma**2 + 1j * kr * sigma**2) / (np.sqrt(2) * sigma))
+        expo1 = np.exp(-alphar * times)
+        expo2 = np.exp(1j * (kr * times - alphar * kr * sigma**2))
+        W = cst * expo1 * np.imag(expo2 * (1 + erf_v))
+
+    return W
