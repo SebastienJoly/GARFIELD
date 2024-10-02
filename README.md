@@ -10,4 +10,4 @@ Example notebooks presenting the different resonator impedance and wake function
 * Create a "smart bound determination" algorithm based on a peak finder and the resulting extracted peak properties.
 * Study the capabilities of adaptative differential evolution algorithms to overcome the need to set a mutation constant and a crossover rate. 
 
-Author : Sébastien Joly (sebastien.joly@cern.ch)
+Author : Sébastien Joly (sebastien.joly@helmholtz-berlin.de)
