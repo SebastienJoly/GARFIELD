@@ -347,6 +347,7 @@ def Resonator_longitudinal_wake(times, Rs, Q, resonant_frequency):
         sin_term = np.sin(omega_r_bar * times)
         exp_term = np.exp(-omega_r * times/(2 * Q))
         Wl = Rs * omega_r / Q * exp_term * (cos_term - omega_r / (2 * Q * omega_r_bar) * sin_term)
+    Wl[times == 0.] = omega_r / (2 * Q) # Fundamental theorem of beam loading
     Wl[times < 0] = 0.
 
     return Wl
